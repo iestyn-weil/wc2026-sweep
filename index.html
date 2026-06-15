@@ -249,7 +249,7 @@ body.editing .ovr{display:inline-flex}
     <div class="hero">
       <div class="eyebrow">Canada · USA · Mexico — 11 Jun to 19 Jul 2026</div>
       <h1>Office <span class="em">World Cup</span> Sweep</h1>
-      <p class="sub">48 teams, 48 sweepers. Prize pool: winner, runner-up, third, fourth and a wooden-spoon last-place award. All kick-off times are shown in GMT, for added fun we have market odds, team guides and stadium notes for the casuals or those eliminated early.  For everyone we have the Fun Stats section, no prize, just bragging rights!</p>
+      <p class="sub">48 teams, 48 sweepers. Prize pool: winner, runner-up, third, fourth and a wooden-spoon last-place award. All kick-off times are shown in BST, for added fun we have market odds, team guides and stadium notes for the casuals or those eliminated early.  For everyone we have the Fun Stats section, no prize, just bragging rights!</p>
     </div>
     <div class="statusbar" id="statusbar"></div>
   </header>
@@ -1047,10 +1047,10 @@ function matchDayKey(m){
 function fmtKickoff(m, withDate){
   var dt = kickoffDate(m);
   if(!dt) return m && m.time ? esc(m.time) : "Time TBC";
-  var time = dt.toLocaleTimeString("en-GB",{timeZone:"UTC",hour:"2-digit",minute:"2-digit",hour12:false});
-  if(!withDate) return time + " GMT";
-  var date = dt.toLocaleDateString("en-GB",{timeZone:"UTC",weekday:"short",day:"numeric",month:"short"});
-  return date + " · " + time + " GMT";
+  var time = dt.toLocaleTimeString("en-GB",{timeZone:"Europe/London",hour:"2-digit",minute:"2-digit",hour12:false});
+  if(!withDate) return time + " BST";
+  var date = dt.toLocaleDateString("en-GB",{timeZone:"Europe/London",weekday:"short",day:"numeric",month:"short"});
+  return date + " · " + time + " BST";
 }
 function matchSort(a,b){
   var da = kickoffDate(a), db = kickoffDate(b);
@@ -1270,7 +1270,7 @@ function renderToday(){
   if(searchActive()){
     var hits = dated.filter(matchMatchesSearch);
     if(!hits.length) return emptyState("No fixture found", "No fixture currently matches that country search.");
-    return '<div class="card"><div class="section-h">Fixture search · GMT</div>'+renderSearchSummary('fixtures', hits.length, dated.length)+hits.map(matchRow).join("")+'</div>';
+    return '<div class="card"><div class="section-h">Fixture search · BST</div>'+renderSearchSummary('fixtures', hits.length, dated.length)+hits.map(matchRow).join("")+'</div>';
   }
   var day = todays, today = dated.filter(function(m){ return matchDayKey(m)===todays; });
   if(!today.length){
@@ -1278,7 +1278,7 @@ function renderToday(){
     if(!future.length){ var lastKey = matchDayKey(dated[dated.length-1]); today = dated.filter(function(m){return matchDayKey(m)===lastKey;}); day = lastKey || todays; }
     else { day = matchDayKey(future[0]); today = dated.filter(function(m){ return matchDayKey(m)===day; }); }
   }
-  var label = day===todays ? "Today · "+fmtDate(day)+" · GMT" : "Next matches · "+fmtDate(day)+" · GMT";
+  var label = day===todays ? "Today · "+fmtDate(day)+" · BST" : "Next matches · "+fmtDate(day)+" · BST";
   return '<div class="card"><div class="section-h">'+esc(label)+'</div>'+
     today.map(matchRow).join("")+'</div>';
 }
@@ -1436,7 +1436,7 @@ function renderOdds(){
 /* ---------------- TEAM GUIDE ---------------- */
 function renderTeams(){
   var intro = '<div class="card info-intro"><div class="section-h">Country guide — who are these teams?</div>'+ 
-    '<div class="hint">A quick office-friendly guide: where each team is from, how they got here, their World Cup best, and their GMT fixture journey from the live feed. Use the country search to narrow it down.</div></div>';
+    '<div class="hint">A quick office-friendly guide: where each team is from, how they got here, their World Cup best, and their BST fixture journey from the live feed. Use the country search to narrow it down.</div></div>';
   var groupKeys = Object.keys(WC.GROUPS);
   var total = allTeams().length, shown = 0;
   var blocks = groupKeys.map(function(g){
@@ -1463,7 +1463,7 @@ function teamCard(team){
 function renderStadiums(){
   var count = APP.data && APP.data.matches ? APP.data.matches.filter(function(m){ return m.ground; }).length : 0;
   var intro = '<div class="card info-intro"><div class="section-h">Stadium guide — 16 host venues</div>'+ 
-    '<div class="hint">Fixtures are pulled from the same live feed and shown in GMT. Click any stadium link in Today or Bracket to jump to the venue card.</div>'+ 
+    '<div class="hint">Fixtures are pulled from the same live feed and shown in BST. Click any stadium link in Today or Bracket to jump to the venue card.</div>'+ 
     '</div>';
   return intro + '<div class="grid g2">'+STADIUM_ORDER.map(stadiumCard).join("")+'</div>';
 }
@@ -1490,7 +1490,7 @@ function renderTab(){
 function renderStatus(){
   var s=APP.source, map={live:["live","Live data"],fallback:["warn","Couldn’t reach live data — showing teams only"],loading:["off","Loading…"]};
   var m=map[s]||map.loading;
-  var t=APP.fetchedAt?APP.fetchedAt.toLocaleString("en-GB",{timeZone:"UTC",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"})+" GMT":"";
+  var t=APP.fetchedAt?APP.fetchedAt.toLocaleString("en-GB",{timeZone:"Europe/London",hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"})+" BST":"";
   document.getElementById("statusbar").innerHTML =
     '<span><span class="dot '+m[0]+'"></span>'+m[1]+'</span>'+ 
     (t?'<span class="updated">Fetched '+t+'</span>':'')+
