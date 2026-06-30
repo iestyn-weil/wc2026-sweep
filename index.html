@@ -255,9 +255,9 @@ body.editing .ovr{display:inline-flex}
   </header>
 
   <nav class="tabs" role="tablist">
-    <button class="tab" role="tab" data-tab="today" aria-selected="false">Today</button>
+    <button class="tab" role="tab" data-tab="today" aria-selected="true">Today</button>
     <button class="tab" role="tab" data-tab="bracket" aria-selected="false">Bracket</button>
-    <button class="tab" role="tab" data-tab="sweep" aria-selected="true">Sweep</button>
+    <button class="tab" role="tab" data-tab="sweep" aria-selected="false">Sweep</button>
     <button class="tab" role="tab" data-tab="prizes" aria-selected="false">Prizes</button>
     <button class="tab" role="tab" data-tab="odds" aria-selected="false">Odds</button>
     <button class="tab" role="tab" data-tab="teams" aria-selected="false">Team guide</button>
@@ -273,10 +273,7 @@ body.editing .ovr{display:inline-flex}
     Data: <a href="https://github.com/openfootball/worldcup.json" target="_blank" rel="noopener">openfootball</a>
     (public domain, hand-updated roughly once a day — so scores can lag a live game). Reload the browser to fetch again.<br>
     Flags: <a href="https://flagicons.lipis.dev/" target="_blank" rel="noopener">flag-icons</a> via jsDelivr, with local and emoji fallback.<br>
-    Stadium guide: based on the FIFA stadium page and public venue briefings; listed capacities can change.<br>
-    Visual background uses a polygonised / low-poly version of your supplied tournament artwork at <code>assets/background.jpg</code>; the hero image is unchanged.<br>
-    Owners are baked into the hosted file as first name plus surname initial, e.g. <strong>Alex M.</strong>. The public page has no edit, export or manual refresh controls.<br>
-    Prize rules: £100 winner, £60 runner-up, £40 third, £20 fourth and £20 last place; red-card tiebreaks are checked manually if needed.
+    Stadium guide: based on the FIFA stadium page and public venue briefings; listed capacities can change.
   </div>
 </div>
 
@@ -927,7 +924,7 @@ function renderTools(){
   mount.innerHTML = '<div class="tool-panel search-only"><div class="tool"><label for="teamSearch">Country search</label><input id="teamSearch" type="search" autocomplete="off" placeholder="Search a country, e.g. Japan" value="'+esc(APP.teamSearch||"")+'"></div><div class="tool compact">'+clear+'</div></div>';
 }
 
-var APP = { data:null, source:"loading", fetchedAt:null, tab:"sweep", selectedStadium:null, myTeam:readMyTeam(), teamSearch:"" };
+var APP = { data:null, source:"loading", fetchedAt:null, tab:"today", selectedStadium:null, myTeam:readMyTeam(), teamSearch:"" };
 
 /* ---------------- data load ---------------- */
 function loadData(){
@@ -1317,6 +1314,11 @@ function matchRow(m){
   var n1 = m.t1 || m.raw1, n2 = m.t2 || m.raw2;
   var c1 = m.t1 ? chip(m.t1) : '<span class="team"><span class="flag tbd">🏳️</span><span class="tname tbd">'+esc(n1)+'</span></span>';
   var c2 = m.t2 ? chip(m.t2) : '<span class="team"><span class="flag tbd">🏳️</span><span class="tname tbd">'+esc(n2)+'</span></span>';
+  var isKO = ["r32","r16","quarter","semi","third_place","final"].indexOf(m.stage) !== -1;
+  var winner = (isKO && m.played) ? WC.matchWinner(m) : null;
+  var throughPill = '<span class="pill adv" style="margin-left:8px;flex:none">Through</span>';
+  if (winner && winner === m.t1) c1 += throughPill;
+  if (winner && winner === m.t2) c2 += throughPill;
   var wentExtra = m.et1 != null && m.et2 != null;
   var dv1 = wentExtra ? m.et1 : m.s1, dv2 = wentExtra ? m.et2 : m.s2;
   var note = wentExtra ? 'aet' : '';
