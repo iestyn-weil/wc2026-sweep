@@ -255,14 +255,14 @@ body.editing .ovr{display:inline-flex}
   </header>
 
   <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="today" aria-selected="false">Today</button>
+    <button class="tab" role="tab" data-tab="bracket" aria-selected="false">Bracket</button>
     <button class="tab" role="tab" data-tab="sweep" aria-selected="true">Sweep</button>
     <button class="tab" role="tab" data-tab="prizes" aria-selected="false">Prizes</button>
-    <button class="tab" role="tab" data-tab="today" aria-selected="false">Today</button>
-    <button class="tab" role="tab" data-tab="groups" aria-selected="false">Groups</button>
     <button class="tab" role="tab" data-tab="odds" aria-selected="false">Odds</button>
     <button class="tab" role="tab" data-tab="teams" aria-selected="false">Team guide</button>
     <button class="tab" role="tab" data-tab="stadiums" aria-selected="false">Stadiums</button>
-    <button class="tab" role="tab" data-tab="bracket" aria-selected="false">Bracket</button>
+    <button class="tab" role="tab" data-tab="groups" aria-selected="false">Groups</button>
     <button class="tab" role="tab" data-tab="stats" aria-selected="false">Fun stats</button>
   </nav>
 
@@ -332,6 +332,10 @@ window.OWNERS = {
   "Czech Republic": "Romella E.",
   "Bosnia & Herzegovina": "Michael M."
 };
+/* Manual score corrections, keyed by matchKey "stage|group|raw1|raw2|date".
+   Fields: s1/s2 (full-time), et1/et2 (after extra time), p1/p2 (penalties).
+   Example for a shootout win not yet reflected by the feed:
+   window.OVERRIDES["r16|null|Germany|Paraguay|2026-07-04"] = {p1:3, p2:4}; */
 window.OVERRIDES = {};
 /*CONFIG_END*/
 </script>
@@ -525,6 +529,10 @@ window.OVERRIDES = {};
       var t2 = resolveTeam(m.team2);
       var s1 = toNum(m.score1 != null ? m.score1 : (m.score && m.score.ft && m.score.ft[0]));
       var s2 = toNum(m.score2 != null ? m.score2 : (m.score && m.score.ft && m.score.ft[1]));
+      var et1 = toNum(m.score1et != null ? m.score1et : (m.score && m.score.et && m.score.et[0]));
+      var et2 = toNum(m.score2et != null ? m.score2et : (m.score && m.score.et && m.score.et[1]));
+      var p1 = toNum(m.score1p != null ? m.score1p : (m.score && m.score.p && m.score.p[0]));
+      var p2 = toNum(m.score2p != null ? m.score2p : (m.score && m.score.p && m.score.p[1]));
       var group = m.group || (t1 && teamGroup(t1)) || null;
       var stage = classifyStage(b.roundName, group);
       out.matches.push({
@@ -538,6 +546,8 @@ window.OVERRIDES = {};
         t1: t1, t2: t2,
         raw1: rawName(m.team1), raw2: rawName(m.team2),
         s1: s1, s2: s2,
+        et1: et1, et2: et2,
+        p1: p1, p2: p2,
         goals: normaliseGoals(m, t1, t2),
         played: s1 != null && s2 != null
       });
@@ -562,6 +572,10 @@ window.OVERRIDES = {};
         var o = overrides[k];
         if (o.s1 != null && o.s1 !== "") mm.s1 = toNum(o.s1);
         if (o.s2 != null && o.s2 !== "") mm.s2 = toNum(o.s2);
+        if (o.et1 != null && o.et1 !== "") mm.et1 = toNum(o.et1);
+        if (o.et2 != null && o.et2 !== "") mm.et2 = toNum(o.et2);
+        if (o.p1 != null && o.p1 !== "") mm.p1 = toNum(o.p1);
+        if (o.p2 != null && o.p2 !== "") mm.p2 = toNum(o.p2);
         mm.played = mm.s1 != null && mm.s2 != null;
       }
     });
@@ -628,6 +642,21 @@ window.OVERRIDES = {};
     return { ranked: thirds, advancing: advancing };
   }
 
+  /* Knockout winner resolution: penalties decide if present, else extra time, else full time.
+     A draw after pens/et/ft genuinely has no winner only when none of those scores differ. */
+  function matchWinner(m) {
+    if (!m || !m.t1 || !m.t2) return null;
+    if (m.p1 != null && m.p2 != null && m.p1 !== m.p2) return m.p1 > m.p2 ? m.t1 : m.t2;
+    if (m.et1 != null && m.et2 != null && m.et1 !== m.et2) return m.et1 > m.et2 ? m.t1 : m.t2;
+    if (m.s1 != null && m.s2 != null && m.s1 !== m.s2) return m.s1 > m.s2 ? m.t1 : m.t2;
+    return null;
+  }
+  function matchLoser(m) {
+    var w = matchWinner(m);
+    if (!w) return null;
+    return w === m.t1 ? m.t2 : m.t1;
+  }
+
   /* ============================================================
      Progress per team + podium
      ============================================================ */
@@ -666,8 +695,8 @@ window.OVERRIDES = {};
         }
       });
       if (m.played) {
-        var winner = m.s1 > m.s2 ? m.t1 : (m.s2 > m.s1 ? m.t2 : null);
-        var loser = m.s1 > m.s2 ? m.t2 : (m.s2 > m.s1 ? m.t1 : null);
+        var winner = matchWinner(m);
+        var loser = matchLoser(m);
         if (loser && m.stage !== "third_place" && m.stage !== "final") {
           state[loser].status = "out"; // knocked out (final/3rd-place handled by podium)
         }
@@ -682,8 +711,8 @@ window.OVERRIDES = {};
     var res = { first: null, second: null, third: null, fourth: null, decided: {} };
     matches.forEach(function (m) {
       if (!m.played || !m.t1 || !m.t2) return;
-      var w = m.s1 > m.s2 ? m.t1 : (m.s2 > m.s1 ? m.t2 : null);
-      var l = m.s1 > m.s2 ? m.t2 : (m.s2 > m.s1 ? m.t1 : null);
+      var w = matchWinner(m);
+      var l = matchLoser(m);
       if (!w) return;
       if (m.stage === "final") { res.first = w; res.second = l; res.decided.final = true; }
       if (m.stage === "third_place") { res.third = w; res.fourth = l; res.decided.third = true; }
@@ -760,6 +789,7 @@ window.OVERRIDES = {};
     matchKey: matchKey, applyOverrides: applyOverrides,
     groupTables: groupTables, groupComplete: groupComplete,
     bestThirds: bestThirds, progress: progress, podium: podium,
+    matchWinner: matchWinner, matchLoser: matchLoser,
     funStats: funStats
   };
 
@@ -1000,7 +1030,7 @@ function lateGoals(matches){
   var team = Object.keys(counts).filter(function(t){ return counts[t] > 0; }).sort(function(a,b){ return counts[b]-counts[a] || a.localeCompare(b); })[0];
   return team ? {team:team, value:counts[team], example:examples[team]} : null;
 }
-function statMatchWinner(m){ return m && m.s1 > m.s2 ? m.t1 : (m && m.s2 > m.s1 ? m.t2 : null); }
+function statMatchWinner(m){ return WC.matchWinner(m); }
 
 
 /* ---------------- v1.5 odds snapshot ---------------- */
@@ -1287,8 +1317,13 @@ function matchRow(m){
   var n1 = m.t1 || m.raw1, n2 = m.t2 || m.raw2;
   var c1 = m.t1 ? chip(m.t1) : '<span class="team"><span class="flag tbd">🏳️</span><span class="tname tbd">'+esc(n1)+'</span></span>';
   var c2 = m.t2 ? chip(m.t2) : '<span class="team"><span class="flag tbd">🏳️</span><span class="tname tbd">'+esc(n2)+'</span></span>';
+  var wentExtra = m.et1 != null && m.et2 != null;
+  var dv1 = wentExtra ? m.et1 : m.s1, dv2 = wentExtra ? m.et2 : m.s2;
+  var note = wentExtra ? 'aet' : '';
+  if (m.p1 != null && m.p2 != null) note += (note ? ', ' : '') + m.p1+'\u2013'+m.p2+' pens';
   var sc = m.played
-    ? '<span class="score mono"><span class="v">'+m.s1+'</span>–<span class="v">'+m.s2+'</span></span>'
+    ? '<span class="score mono"><span class="v">'+dv1+'</span>–<span class="v">'+dv2+'</span></span>'+
+      (note ? '<div class="hint" style="text-align:center;margin-top:2px">'+esc(note)+'</div>' : '')
     : '<span class="score tbd">v</span>';
   var tags = '<span class="tag">'+(m.group||WC.STAGE_LABEL[m.stage]||"")+'</span>'+ 
     (m.num?'<span class="tag">M'+esc(m.num)+'</span>':'')+
@@ -1297,7 +1332,7 @@ function matchRow(m){
   var classes = 'match '+(isMyTeam(m.t1)||isMyTeam(m.t2)?'my-team-match ':'')+(searchActive()&&matchMatchesSearch(m)?'search-match ':'');
   return '<div class="'+classes+'"><div class="mwhen">'+tags+'</div>'+ 
     '<div class="side home">'+c1+'</div>'+ 
-    '<div style="display:flex;align-items:center;justify-content:center">'+sc+'</div>'+ 
+    '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">'+sc+'</div>'+ 
     '<div class="side away">'+c2+'</div></div>';
 }
 
